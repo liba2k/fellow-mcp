@@ -1,6 +1,6 @@
 {
   "name": "fellow-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for Fellow.ai API - access meeting data, transcripts, summaries, and action items",
   "type": "module",
   "main": "dist/index.js",
