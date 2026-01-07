@@ -10,19 +10,8 @@ A local MCP (Model Context Protocol) server that wraps the Fellow.ai API, provid
 
 ## Installation
 
-### Option 1: Install from npm (Recommended)
-
 ```bash
 npm install -g fellow-mcp
-```
-
-### Option 2: Install from source
-
-```bash
-git clone https://github.com/liba2k/fellow-mcp.git
-cd fellow-mcp
-npm install
-npm run build
 ```
 
 ## Setup
@@ -36,8 +25,6 @@ npm run build
 
 ### 2. Configure your MCP client
 
-#### If installed via npm:
-
 Add the following to your MCP client configuration (e.g., `~/.config/opencode/opencode.json`):
 
 ```json
@@ -45,55 +32,10 @@ Add the following to your MCP client configuration (e.g., `~/.config/opencode/op
   "mcp": {
     "fellow": {
       "type": "local",
-      "command": ["fellow-mcp"],
-      "env": {
-        "FELLOW_API_KEY": "your-api-key-here",
-        "FELLOW_SUBDOMAIN": "your-subdomain"
-      },
-      "enabled": true
-    }
-  }
-}
-```
-
-#### If installed from source:
-
-Option A: Use the run.sh script with .env file:
-
-1. Copy the example env file and fill in your credentials:
-```bash
-cp .env.example .env
-```
-
-2. Edit `.env` with your credentials:
-```
-FELLOW_API_KEY=your-api-key-here
-FELLOW_SUBDOMAIN=your-subdomain
-```
-
-3. Configure your MCP client:
-```json
-{
-  "mcp": {
-    "fellow": {
-      "type": "local",
-      "command": ["/path/to/fellow-mcp/run.sh"],
-      "enabled": true
-    }
-  }
-}
-```
-
-Option B: Pass environment variables directly:
-```json
-{
-  "mcp": {
-    "fellow": {
-      "type": "local",
-      "command": ["node", "/path/to/fellow-mcp/dist/index.js"],
-      "env": {
-        "FELLOW_API_KEY": "your-api-key-here",
-        "FELLOW_SUBDOMAIN": "your-subdomain"
+      "command": ["npx", "-y", "fellow-mcp"],
+      "environment": {
+        "FELLOW_API_KEY": "YOUR_FELLOW_API_KEY_HERE",
+        "FELLOW_SUBDOMAIN": "YOUR_SUBDOMAIN"
       },
       "enabled": true
     }
@@ -207,8 +149,8 @@ npm run dev
 # Build
 npm run build
 
-# Test the server
-node dist/index.js --test
+# Test API connection
+node --env-file=.env test-api.js
 ```
 
 ## Requirements
