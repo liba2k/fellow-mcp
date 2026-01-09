@@ -839,6 +839,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
 
         let noteId = note_id;
+        let targetRecordingId = recording_id;
 
         // If recording_id provided, get the associated note_id
         if (!noteId && recording_id) {
@@ -849,60 +850,95 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         }
 
-        // If meeting_title provided, search for the note
+        // If meeting_title provided, search for the note and recording
         if (!noteId && meeting_title) {
-          const notesResp = await client.listNotes({
+          // Search recordings by title to get both note_id and recording_id
+          const recordingsResp = await client.listRecordings({
             title: meeting_title,
-            include_content: true,
             page_size: 1,
           });
-          if (notesResp.notes.data.length > 0) {
-            const note = notesResp.notes.data[0];
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: `# Meeting Summary: ${note.title}\n\nNote ID: ${note.id}\nEvent Start: ${note.event_start ?? "N/A"}\n\n${note.content_markdown ?? "No content available."}`,
-                },
-              ],
-            };
+          if (recordingsResp.recordings.data.length > 0) {
+            const recording = recordingsResp.recordings.data[0];
+            noteId = recording.note_id;
+            targetRecordingId = recording.id;
           }
         }
 
-        if (!noteId) {
+        if (!noteId && !targetRecordingId) {
           return {
             content: [
               {
                 type: "text",
-                text: "Note not found. Please provide a valid note_id, recording_id, or meeting_title.",
+                text: "Meeting not found. Please provide a valid note_id, recording_id, or meeting_title.",
               },
             ],
           };
         }
 
-        // Get note with content
-        const notesResp = await client.listNotes({
-          include_content: true,
-          page_size: 50,
-        });
-        const note = notesResp.notes.data.find((n) => n.id === noteId);
+        // Fetch note content
+        let noteContent: string | null = null;
+        let noteTitle: string = meeting_title ?? "Unknown Meeting";
+        let eventStart: string | null = null;
 
-        if (!note) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: `Note with ID ${noteId} not found or not accessible.`,
-              },
-            ],
-          };
+        if (noteId) {
+          const notesResp = await client.listNotes({
+            include_content: true,
+            page_size: 50,
+          });
+          const note = notesResp.notes.data.find((n) => n.id === noteId);
+          if (note) {
+            noteTitle = note.title;
+            eventStart = note.event_start ?? null;
+            noteContent = note.content_markdown ?? null;
+          }
+        }
+
+        // Find recording ID if we don't have it
+        if (!targetRecordingId && noteId) {
+          const recordingsResp = await client.listRecordings({ page_size: 50 });
+          const recording = recordingsResp.recordings.data.find((r) => r.note_id === noteId);
+          if (recording) {
+            targetRecordingId = recording.id;
+          }
+        }
+
+        // Fetch transcript
+        let transcriptText: string | null = null;
+        if (targetRecordingId) {
+          const recordingsResp = await client.listRecordings({
+            include_transcript: true,
+            page_size: 50,
+          });
+          const recording = recordingsResp.recordings.data.find((r) => r.id === targetRecordingId);
+          if (recording?.transcript) {
+            transcriptText = formatTranscript(recording.transcript);
+            if (!noteTitle || noteTitle === "Unknown Meeting") {
+              noteTitle = recording.title;
+            }
+          }
+        }
+
+        // Build response with both note and transcript
+        let response = `# Meeting Summary: ${noteTitle}\n\n`;
+        response += `Note ID: ${noteId ?? "N/A"}\n`;
+        response += `Recording ID: ${targetRecordingId ?? "N/A"}\n`;
+        response += `Event Start: ${eventStart ?? "N/A"}\n\n`;
+
+        if (noteContent) {
+          response += `## Notes\n\n${noteContent}\n\n`;
+        }
+
+        if (transcriptText) {
+          response += `## Transcript\n\n${transcriptText}`;
+        } else if (!noteContent) {
+          response += "No notes or transcript available for this meeting.";
         }
 
         return {
           content: [
             {
               type: "text",
-              text: `# Meeting Summary: ${note.title}\n\nNote ID: ${note.id}\nEvent Start: ${note.event_start ?? "N/A"}\n\n${note.content_markdown ?? "No content available."}`,
+              text: response,
             },
           ],
         };
